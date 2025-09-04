@@ -1,31 +1,32 @@
-FROM alpine:3.20.2
+ARG ALPINE_VERSION=3.22.1
+FROM alpine:${ALPINE_VERSION}
+LABEL maintainer="Gavin Brown <gavin.brown@greycubes.net>"
 
-LABEL maintainer="Diogo Serrano <info@diogoserrano.com>"
-
-# monit environment variables
-ENV MONIT_VERSION=5.26.0 \
-    MONIT_HOME=/opt/monit \
-    MONIT_URL=https://mmonit.com/monit/dist \
-    PATH=$PATH:/opt/monit/bin
-
-COPY slack /bin/slack
-COPY pushover /bin/pushover
-
-# Compile and install monit
-RUN \
-    apk add --update gcc musl-dev make bash python3 curl libressl-dev file zlib-dev && \
-    mkdir -p /opt/src; cd /opt/src && \
-    wget -qO- ${MONIT_URL}/monit-${MONIT_VERSION}.tar.gz | tar xz && \
-    cd /opt/src/monit-${MONIT_VERSION} && \
-    ./configure --prefix=${MONIT_HOME} --without-pam && \
-    make && make install && \
-    apk del gcc musl-dev make file zlib-dev && \
-    rm -rf /var/cache/apk/* /opt/src
-
+# Expose the web interface port
 EXPOSE 2812
 
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN ln -s /usr/local/bin/docker-entrypoint.sh /entrypoint.sh # backwards compat
-ENTRYPOINT ["/entrypoint.sh"]
+# monit environment variables
+ARG  MONIT_VERSION=5.35.2
+ENV MONIT_VERSION=${MONIT_VERSION}
+#ENV MONIT_VERSION=5.35.2
 
-CMD ["monit", "-I", "-B", "-c", "/etc/monitrc_root"]
+# Add pam since binary is linked to it
+RUN apk add --update linux-pam
+
+# Copy over the pre-built binary
+COPY src/pkgs/monit-${MONIT_VERSION}-linux-x64-musl.tar.gz /opt/pkgs/
+
+# Unpack the binary
+RUN tar -zxf /opt/pkgs/monit-${MONIT_VERSION}-linux-x64-musl.tar.gz -C /opt/
+RUN ln -s /opt/monit-${MONIT_VERSION}/bin/monit /bin/monit && ln -s /opt/monit-${MONIT_VERSION}/conf/monitrc /etc/monitrc
+# Enable the web interface and allow access from anywhere
+RUN sed -i -E 's/([[:space:]]*allow localhost)/#\1/' /etc/monitrc && \
+    sed -i -E 's/([[:space:]]*use address localhost)/#\1/' /etc/monitrc && \
+    sed -i -E 's|([[:space:]]*)set log syslog|\1set logfile /dev/stdout|' /etc/monitrc
+
+# Create a non-root user to run monit and change to that user
+RUN adduser -D -u 1000 monit
+USER 1000
+
+# Run monit in the foreground (-I), batch output (-B) nad specify the config file location (-c /etc/monitrc)
+CMD ["/bin/monit", "-I", "-B", "-c", "/etc/monitrc"]
