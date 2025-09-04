@@ -12,7 +12,7 @@ ENV MONIT_VERSION=${MONIT_VERSION}
 #ENV MONIT_VERSION=5.35.2
 
 # Add pam since binary is linked to it
-RUN apk add --update linux-pam curl && rm -rf /var/cache/apk/*
+RUN apk add --update linux-pam curl libcap && rm -rf /var/cache/apk/*
 
 # Copy over the pre-built binary
 COPY src/pkgs/monit-${MONIT_VERSION}-linux-x64-musl.tar.gz /opt/pkgs/
@@ -22,6 +22,8 @@ RUN tar -zxf /opt/pkgs/monit-${MONIT_VERSION}-linux-x64-musl.tar.gz -C /opt/
 RUN ln -s /opt/monit-${MONIT_VERSION}/bin/monit /bin/monit && \
     ln -s /opt/monit-${MONIT_VERSION}/conf/monitrc /etc/monitrc && \
     install -d -m 0700 -o 1000 -g 1000 /etc/monit.d/
+
+RUN setcap cap_net_raw=ep /opt/monit-${MONIT_VERSION}/bin/monit
 
 # Enable the web interface and allow access from anywhere
 # Set the log to go to stdout
