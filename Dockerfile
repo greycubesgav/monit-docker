@@ -4,6 +4,7 @@ LABEL maintainer="Gavin Brown <gavin.brown@greycubes.net>"
 
 # Expose the web interface port
 EXPOSE 2812
+HEALTHCHECK --interval=30s --timeout=30s --start-period=15s --retries=3 CMD curl -Is http://localhost:2812 -o /dev/null || exit 1
 
 # monit environment variables
 ARG MONIT_VERSION=5.35.2
