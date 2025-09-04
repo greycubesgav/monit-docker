@@ -1,2 +1,3 @@
 credentials.json
 create_docker_image.sh
+.env

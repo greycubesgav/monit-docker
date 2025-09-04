@@ -15,7 +15,21 @@ docker-build-image:
 		--tag $(DOCKER_USER)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_VERSION) .
 
 docker-run-image:
-	docker run --platform $(DOCKER_PLATFORM) --publish 2812:2812 --rm --name 'monit' --detach $(DOCKER_USER)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_VERSION)
+	docker run --platform $(DOCKER_PLATFORM) \
+		--env-file ./.env \
+		--publish 2812:2812 \
+		--rm --name 'monit' \
+		--detach \
+		$(DOCKER_USER)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_VERSION)
+
+docker-run-image-test:
+	docker run --platform $(DOCKER_PLATFORM) \
+		--env-file ./.env \
+		--volume $(PWD)/src/etc/monit.d:/etc/monit.d:ro \
+		--publish 2812:2812 \
+		--rm --name 'monit' \
+		--detach \
+		$(DOCKER_USER)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_VERSION)
 
 docker-stop-container:
 	docker stop monit
